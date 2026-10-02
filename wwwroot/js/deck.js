@@ -284,16 +284,48 @@ $('#file-import').addEventListener('change', async (e) => {
     return;
   }
   try {
-    let data;
-    try { data = JSON.parse(await file.text()); } catch { throw new Error(t('import.invalidJson')); }
-    const decks = Array.isArray(data?.decks) ? parseState(data).decks : [parseDeck(data)];
-    state.decks.push(...decks);
-    current = state.decks.length - decks.length;
-    resetForm();
-    commit();
-    toast(t('import.done', { n: decks.length }));
+    addDecksFromJson(await file.text());
   } catch (err) {
     toast(t('import.failed', { msg: err.message }), true);
+  }
+});
+
+// 解析 JSON 文字（一副牌組 { name, cards } 或多副 { decks: [...] }），新增在現有牌組之後；格式錯誤時丟出錯誤
+function addDecksFromJson(text) {
+  let data;
+  try { data = JSON.parse(text); } catch { throw new Error(t('import.invalidJson')); }
+  const decks = Array.isArray(data?.decks) ? parseState(data).decks : [parseDeck(data)];
+  state.decks.push(...decks);
+  current = state.decks.length - decks.length;
+  resetForm();
+  commit();
+  toast(t('import.done', { n: decks.length }));
+  return decks.length;
+}
+
+// ===== 輸入 JSON：在視窗中直接貼上 JSON 建立牌組 =====
+const pasteDialog = $('#paste-dialog');
+
+$('#btn-paste-json').addEventListener('click', () => {
+  $('#paste-json').value = '';
+  $('#paste-error').textContent = '';
+  bootstrap.Modal.getOrCreateInstance(pasteDialog).show();
+});
+pasteDialog.addEventListener('shown.bs.modal', () => $('#paste-json').focus());
+
+// 格式錯誤時把訊息顯示在視窗裡，不關閉，方便修改後再送出
+$('#paste-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const text = $('#paste-json').value.trim();
+  if (!text) {
+    $('#paste-error').textContent = t('deck.pasteEmpty');
+    return;
+  }
+  try {
+    addDecksFromJson(text);
+    bootstrap.Modal.getOrCreateInstance(pasteDialog).hide();
+  } catch (err) {
+    $('#paste-error').textContent = err.message;
   }
 });
 

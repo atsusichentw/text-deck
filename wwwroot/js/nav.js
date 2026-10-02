@@ -6,7 +6,7 @@
 // 所以放在 GitHub Pages 的 /text-deck/ 底下或本機根目錄都能正確連結。
 // 右上角的語言、主題切換需要先在 <head> 載入 theme.js、i18n.js 與 lib/bootstrap-icons。
 const NAV_ITEMS = [
-  { path: 'pages/duel/', key: 'nav.duel' },
+  { path: 'pages/simulate/', key: 'nav.simulate' },
   { path: 'pages/deck/', key: 'nav.deck' },
 ];
 const SITE_ROOT = new URL('../../', document.querySelector('script[src$="wwwroot/js/nav.js"]').src);

@@ -1,6 +1,6 @@
 'use strict';
 
-// ===== 卡片與牌組規則（管理牌組、對戰共用）=====
+// ===== 卡片與牌組規則 =====
 // 需先載入 i18n.js。
 // 種類、顏色、觸發在資料中一律存成與語言無關的代碼，畫面上再用 t('type.character') 等翻譯。
 const TYPES = ['character', 'event', 'climax'];
@@ -94,7 +94,7 @@ function sameCard(a, b) {
   return ['name', 'type', 'color', 'level', 'cost', 'power', 'soul', 'trigger', 'effect'].every((k) => a[k] === b[k]);
 }
 
-// 統計牌組張數，並列出不符合規則的地方（problems 為空表示可用來對戰）
+// 統計牌組張數，並列出不符合規則的地方（problems 為空表示牌組符合規則）
 function deckSummary(d) {
   const byType = Object.fromEntries(TYPES.map((x) => [x, 0]));
   const byColor = Object.fromEntries(COLORS.map((x) => [x, 0]));

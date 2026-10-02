@@ -1,4 +1,8 @@
 /* 管理牌組頁 */
+/* 輸入 JSON 視窗 */
+.paste-body { display: grid; gap: 8px; }
+.paste-body .field > span { color: var(--fg); }
+#paste-json { font-family: var(--font-mono); font-size: .85rem; line-height: 1.5; resize: vertical; min-height: 220px; }
 .deck-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .deck-bar select { min-width: 180px; }
 .sep { width: 1px; height: 24px; background: var(--line); margin: 0 4px; }

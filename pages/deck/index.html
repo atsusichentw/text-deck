@@ -26,6 +26,7 @@
       <button type="button" class="btn" id="btn-export" data-i18n="deck.export">匯出 .json</button>
       <label class="btn" for="file-import" data-i18n="deck.import">匯入 .json</label>
       <input type="file" id="file-import" accept=".json" hidden>
+      <button type="button" class="btn" id="btn-paste-json" data-i18n="deck.pasteJson">輸入 JSON</button>
     </div>
 
     <label class="panel deck-name">
@@ -88,6 +89,29 @@
       </section>
     </div>
   </main>
+
+  <!-- 輸入 JSON：直接貼上牌組 JSON 建立牌組 -->
+  <div class="modal fade" id="paste-dialog" tabindex="-1" aria-labelledby="paste-dialog-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <form class="modal-content" id="paste-form" novalidate>
+        <div class="modal-header">
+          <h2 class="modal-title" id="paste-dialog-title" data-i18n="deck.pasteTitle">輸入 JSON 建立牌組</h2>
+          <button type="button" class="modal-close" data-bs-dismiss="modal" data-i18n-aria-label="dialog.close" aria-label="關閉"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+        </div>
+        <div class="modal-body paste-body">
+          <label class="field">
+            <span data-i18n="deck.pasteHint">貼上牌組的 JSON（格式與匯出的 .json 相同，可以是一副或多副牌組）。</span>
+            <textarea id="paste-json" rows="12" spellcheck="false" autocomplete="off" placeholder='{ "name": "…", "cards": [ … ] }'></textarea>
+          </label>
+          <p class="form-error" id="paste-error" role="alert"></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" data-bs-dismiss="modal" data-i18n="dialog.cancel">取消</button>
+          <button type="submit" class="btn primary" data-i18n="deck.pasteSubmit">建立牌組</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <script src="../../wwwroot/lib/bootstrap/bootstrap.bundle.min.js"></script>
   <script src="../../wwwroot/js/common.js"></script>

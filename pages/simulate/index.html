@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title data-i18n="title.simulate">模擬 · TDeck</title>
+  <script src="../../wwwroot/js/theme.js"></script>
+  <script src="../../wwwroot/js/i18n.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;700&amp;family=Noto+Sans+TC:wght@400;500;700&amp;family=Outfit:wght@500;600;700&amp;family=Cormorant+Garamond:ital,wght@1,600&amp;family=Playfair+Display:ital,wght@1,700&amp;display=swap">
+  <link rel="stylesheet" href="../../wwwroot/lib/bootstrap-icons/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="../../wwwroot/lib/bootstrap/bootstrap-modal.min.css">
+  <link rel="stylesheet" href="../../wwwroot/css/site.css">
+  <link rel="stylesheet" href="../../wwwroot/css/simulate.css">
+</head>
+<body class="simulate-page">
+  <header id="navbar"></header>
+
+  <main>
+    <!-- 第一步：選擇牌組 -->
+    <section id="step-choose" class="panel">
+      <div class="step-head">
+        <h2 data-i18n="simulate.chooseTitle">選擇牌組</h2>
+        <p class="muted" data-i18n="simulate.chooseHint">選一副符合規則的牌組開始模擬。</p>
+      </div>
+
+
+      <div id="deck-choices" class="deck-choices"></div>
+
+      <div class="start-bar" id="start-bar">
+        <button type="button" class="btn primary btn-block" id="btn-start" disabled><i class="bi bi-play-fill" aria-hidden="true"></i><span data-i18n="simulate.start">開始模擬</span></button>
+      </div>
+    </section>
+
+    <!-- 選好牌組之後：左邊場上區域、中間聊天室（log）、右邊手牌 -->
+    <div id="table" class="sim-table" hidden>
+      <aside class="panel side-panel zone-panel" aria-labelledby="zones-title">
+        <h3 id="zones-title" class="hand-title" data-i18n="simulate.zones">場上區域</h3>
+        <div id="zone-list" class="zone-list"></div>
+      </aside>
+
+      <section id="chat" class="panel chat">
+        <header class="chat-header">
+          <button type="button" class="chat-back" id="btn-change-deck" data-i18n-title="simulate.change" data-i18n-aria-label="simulate.change" title="重新選擇牌組" aria-label="重新選擇牌組">
+            <i class="bi bi-arrow-left" aria-hidden="true"></i>
+          </button>
+          <h2 id="chat-title"></h2>
+          <div class="zone-chips">
+            <div class="deck-menu">
+              <button type="button" class="zone-chip deck-toggle" id="deck-count" aria-haspopup="true" aria-expanded="false" aria-controls="deck-menu" title="牌堆" data-i18n-title="zone.deck">
+                <i class="bi bi-stack" aria-hidden="true"></i><span></span><i class="bi bi-chevron-down caret" aria-hidden="true"></i>
+              </button>
+              <ul class="nav-menu deck-menu-list" id="deck-menu" role="menu" data-i18n-aria-label="zone.deck" aria-label="牌堆" hidden>
+                <li role="none"><button type="button" role="menuitem" id="btn-shuffle"><i class="bi bi-shuffle" aria-hidden="true"></i><span data-i18n="simulate.shuffle">洗牌</span></button></li>
+                <li role="none"><button type="button" role="menuitem" id="btn-draw"><i class="bi bi-box-arrow-up" aria-hidden="true"></i><span data-i18n="simulate.draw">抽牌</span></button></li>
+                <li role="none"><button type="button" role="menuitem" id="btn-reveal-top"><i class="bi bi-eye" aria-hidden="true"></i><span data-i18n="simulate.revealTop">公開牌庫頂</span></button></li>
+                <li role="none"><button type="button" role="menuitem" id="btn-reveal-bottom"><i class="bi bi-eye" aria-hidden="true"></i><span data-i18n="simulate.revealBottom">公開牌庫底</span></button></li>
+                <li role="none"><button type="button" role="menuitem" id="btn-clock-top"><i class="bi bi-clock" aria-hidden="true"></i><span data-i18n="simulate.topToClock">牌庫頂放入時計</span></button></li>
+                <li role="none"><button type="button" role="menuitem" id="btn-clock-bottom"><i class="bi bi-clock" aria-hidden="true"></i><span data-i18n="simulate.bottomToClock">牌庫底放入時計</span></button></li>
+                <li role="separator" class="menu-sep"></li>
+                <li role="none"><button type="button" role="menuitem" id="btn-view-deck"><i class="bi bi-card-list" aria-hidden="true"></i><span data-i18n="simulate.viewDeck">查看牌庫</span></button></li>
+                <li role="none"><button type="button" role="menuitem" id="btn-reset-deck"><i class="bi bi-arrow-repeat" aria-hidden="true"></i><span data-i18n="simulate.resetDeck">重置牌庫</span></button></li>
+              </ul>
+            </div>
+          </div>
+        </header>
+        <div id="chat-messages" class="chat-messages" role="log" aria-live="polite"></div>
+      </section>
+
+      <aside class="panel side-panel hand-panel" aria-labelledby="hand-title">
+        <h3 id="hand-title" class="hand-title"><span data-i18n="zone.hand">手牌</span><span class="muted" id="hand-total"></span></h3>
+        <div id="hand-list" class="hand-list"></div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- 區域視窗（時計、處理、能量、查看牌庫）：點左側區域或牌堆選單打開；可操作的區域用每張卡的漢堡選單 -->
+  <div class="modal fade" id="zone-dialog" tabindex="-1" aria-labelledby="zone-dialog-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title" id="zone-dialog-title"></h2>
+          <button type="button" class="modal-close" data-bs-dismiss="modal" data-i18n-aria-label="dialog.close" aria-label="關閉"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+        </div>
+        <div class="modal-body pick-body">
+          <div class="zone-filters" id="zone-filters" hidden>
+            <label class="zone-filter"><span data-i18n="stat.level">等級</span><select id="filter-level"></select></label>
+            <label class="zone-filter"><span data-i18n="field.color">顏色</span><select id="filter-color"></select></label>
+            <label class="zone-filter"><span data-i18n="field.type">種類</span><select id="filter-type"></select></label>
+            <span class="muted zone-filter-count" id="zone-filter-count"></span>
+          </div>
+          <p id="zone-dialog-hint" class="pick-hint"></p>
+          <div id="zone-dialog-cards" class="pick-cards"></div>
+        </div>
+        <!-- 只在時計區、能量區顯示 -->
+        <div class="modal-footer zone-dialog-footer" id="zone-dialog-footer" hidden>
+          <button type="button" class="btn danger btn-block" id="btn-clear-zone"><i class="bi bi-trash3" aria-hidden="true"></i><span></span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 放大鏡（手牌、log、場上區域）：顯示卡片效果 -->
+  <div class="modal fade" id="card-dialog" tabindex="-1" aria-labelledby="card-dialog-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title" id="card-dialog-title"></h2>
+          <button type="button" class="modal-close" data-bs-dismiss="modal" data-i18n-aria-label="dialog.close" aria-label="關閉"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+        </div>
+        <div class="modal-body card-dialog-body">
+          <p class="card-dialog-meta" id="card-dialog-meta"></p>
+          <h3 class="card-dialog-label" data-i18n="field.effect">效果</h3>
+          <p class="card-dialog-effect" id="card-dialog-effect"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../wwwroot/lib/bootstrap/bootstrap.bundle.min.js"></script>
+  <script src="../../wwwroot/js/common.js"></script>
+  <script src="../../wwwroot/js/nav.js"></script>
+  <script src="../../wwwroot/js/rules.js"></script>
+  <script src="../../wwwroot/js/storage.js"></script>
+  <script src="../../wwwroot/js/simulate.js"></script>
+</body>
+</html>

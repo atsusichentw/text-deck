@@ -1,0 +1,297 @@
+/* 模擬頁 */
+.step-head { display: grid; gap: 4px; margin-bottom: 16px; }
+.step-head p { margin: 0; }
+
+/* 第一步：牌組選項（點了只選取，按最下方「開始模擬」才開始）*/
+.deck-choice { position: relative; }
+.deck-choice.selected { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); background: var(--panel); }
+.choice-check { position: absolute; top: 10px; right: 12px; color: var(--accent); font-size: 1.1rem; }
+.start-bar { position: sticky; bottom: -16px; margin: 20px -16px -16px; padding: 12px 16px 16px; background: var(--panel); border-top: 1px solid var(--line); border-radius: 0 0 10px 10px; } /* 牌組很多時也固定在底部 */
+.start-bar .btn { font-size: 1.05rem; padding: 12px 16px; }
+.deck-choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.deck-choice {
+  display: grid; gap: 6px; justify-items: start;
+  padding: 14px 16px;
+  font: inherit; text-align: left;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color .15s, box-shadow .15s;
+}
+.deck-choice:hover:not(:disabled), .deck-choice:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+  outline: none;
+}
+.deck-choice:disabled { cursor: not-allowed; opacity: .6; }
+.choice-name { font-family: var(--font-display); font-size: 1.1rem; font-weight: 600; overflow-wrap: anywhere; }
+.choice-meta { font-size: .85rem; color: var(--muted); }
+.choice-colors { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: .85rem; }
+.color-count { display: inline-flex; align-items: center; gap: 4px; }
+.choice-status { font-size: .85rem; font-weight: 500; }
+.choice-status.ok { color: var(--ok); }
+.choice-status.bad { color: var(--bad); }
+
+.empty-choices { display: grid; justify-items: start; gap: 12px; }
+.empty-choices p { margin: 0; }
+.empty-choices .btn { text-decoration: none; }
+
+/* 版面：整頁高度固定，聊天室填滿導覽列以下的空間，只有訊息區捲動 */
+.simulate-page { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
+.simulate-page main { flex: 1; min-height: 0; width: 100%; display: flex; flex-direction: column; overflow-y: auto; }
+.simulate-page.in-chat main { overflow: hidden; }
+
+/* 第二步：左邊場上區域、中間聊天室（log）、右邊手牌 */
+.sim-table {
+  flex: 1; min-height: 0;
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr) 300px;
+  grid-template-areas: "zones chat hand";
+  gap: 16px;
+}
+.zone-panel { grid-area: zones; }
+.chat { grid-area: chat; }
+.hand-panel { grid-area: hand; }
+/* 中等寬度：聊天室在上，場上區域與手牌並排在下 */
+@media (max-width: 1100px) {
+  .sim-table {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) minmax(0, 40%);
+    grid-template-areas: "chat chat" "zones hand";
+    gap: 12px;
+  }
+}
+/* 手機：由上往下排列 */
+@media (max-width: 600px) {
+  .sim-table {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) minmax(0, 28%) minmax(0, 28%);
+    grid-template-areas: "chat" "zones" "hand";
+  }
+}
+.chat {
+  min-height: 0;
+  display: flex; flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* 兩側面板（場上區域、手牌）*/
+.side-panel { min-height: 0; display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+.hand-title {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  padding: 14px 16px;
+  font-size: 1.05rem;
+  border-bottom: 1px solid var(--line);
+}
+.hand-list { flex: 1; min-height: 0; overflow-y: auto; display: grid; align-content: start; gap: 8px; padding: 12px; }
+.hand-empty { margin: 0; padding: 4px; }
+
+/* 場上區域 */
+.zone-list { flex: 1; min-height: 0; overflow-y: auto; padding: 8px; }
+.zone-item summary {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.zone-item summary:hover { background: var(--bg); }
+.zone-item summary b { font-family: var(--font-display); font-variant-numeric: tabular-nums; }
+.zone-cards { display: grid; gap: 6px; padding: 4px 0 8px; }
+.zone-empty { margin: 0; padding: 0 8px; font-size: .85rem; }
+
+.chat-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.chat-header h2 { font-size: 1.15rem; overflow-wrap: anywhere; }
+.chat-back {
+  width: 36px; height: 36px; flex: none;
+  display: inline-grid; place-items: center;
+  padding: 0;
+  font-size: 1.05rem;
+  color: var(--fg);
+  background: none;
+  border: 0; border-radius: 50%;
+  cursor: pointer;
+}
+.chat-back:hover { background: var(--bg); }
+
+.chat-messages {
+  flex: 1; min-height: 0;
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 16px;
+  background: var(--bg);
+}
+.msg { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; max-width: min(520px, 90%); }
+.msg.system { align-self: center; align-items: center; }
+.msg-bubble {
+  display: grid; gap: 8px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  border-bottom-left-radius: 4px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+.msg.system .msg-bubble { background: none; border: 0; padding: 2px 8px; font-size: .85rem; color: var(--muted); text-align: center; }
+.msg-time { font-size: .72rem; color: var(--muted); padding: 0 4px; }
+.msg.system .msg-time { display: none; }
+
+/* 抽到的卡片 */
+.sim-card {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 10px 12px;
+  white-space: normal;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.sim-card .dot { margin-top: 7px; }
+.sim-card-body { display: grid; gap: 2px; min-width: 0; }
+.sim-card-name { font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; }
+.sim-card-meta { font-size: .85rem; color: var(--muted); }
+.sim-card-loc { font-size: .8rem; font-weight: 600; color: var(--accent); }
+.sim-card-body { flex: 1; }
+.card-btn {
+  width: 32px; height: 32px; flex: none;
+  display: inline-grid; place-items: center;
+  padding: 0;
+  font-size: .9rem;
+  color: var(--muted);
+  background: none;
+  border: 1px solid transparent; border-radius: 50%;
+  cursor: pointer;
+}
+.card-btn:hover, .card-btn:focus-visible { color: var(--accent); border-color: var(--line); background: var(--panel); outline: none; }
+/* 卡片右上角的按鈕組（放大鏡、☰）：手牌、log、區域視窗共用同一個位置與間距 */
+.card-actions { flex: none; display: flex; align-items: center; gap: 2px; margin: -4px -6px 0 auto; }
+
+/* 區域視窗底部（時計區的「清空時計區」）*/
+.zone-dialog-footer { padding: 12px 20px 18px; }
+.btn-block { width: 100%; gap: 8px; padding: 10px 14px; }
+.btn-block:disabled { opacity: .5; cursor: not-allowed; }
+
+/* 區域視窗（時計、處理）：選卡片再選去處 */
+.pick-body { display: grid; gap: 12px; }
+.pick-body p { margin: 0; }
+.pick-cards { display: grid; gap: 8px; }
+.pick-card {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 10px 12px;
+  font: inherit; text-align: left;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.pick-card .dot { margin-top: 7px; }
+.pick-card:hover, .pick-card:focus-visible { border-color: var(--accent); outline: none; }
+.pick-card.selected { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); background: var(--panel); }
+.pick-body .pick-hint { font-size: .9rem; color: var(--muted); }
+
+/* 可操作的區域視窗（查看牌庫、時計、處理）：篩選、位置編號、每張卡的漢堡選單 */
+.zone-filters {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 10px;
+  position: sticky; top: 0; z-index: 2;
+  padding-bottom: 6px;
+  background: var(--panel);
+}
+.zone-filter { display: grid; gap: 2px; flex: 1 1 90px; }
+.zone-filter span { font-size: .8rem; color: var(--muted); }
+.zone-filter select { padding: 5px 8px; }
+.zone-filter-count { white-space: nowrap; font-size: .85rem; padding-bottom: 6px; }
+/* 區域視窗的卡片：版面與手牌相同（色點、文字靠上對齊，按鈕組在右上角），左邊多一個位置編號 */
+.deck-row { cursor: default; }
+.deck-row:hover { border-color: var(--line); }
+.row-pos { min-width: 2.2ch; margin-top: 3px; text-align: right; font-family: var(--font-display); font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.row-menu { position: relative; }
+
+/* 效果視窗可能疊在區域視窗上：效果視窗與它的背景要在區域視窗之上 */
+#card-dialog { --bs-modal-zindex: 1065; }
+.modal-backdrop + .modal-backdrop { z-index: 1060; }
+.row-menu-list { right: 0; top: calc(100% + 2px); min-width: 180px; z-index: 5; }
+/* 打開時改成浮在最上層（位置由 JS 計算），避免被可捲動的區塊或標題蓋住 */
+.row-menu-list.floating { position: fixed; left: auto; bottom: auto; z-index: 2000; max-height: calc(100vh - 16px); overflow-y: auto; }
+.row-menu-list button { justify-content: flex-start; }
+.row-menu-list button small { margin-left: auto; font-size: .75rem; color: var(--muted); }
+.row-menu-list button:disabled { opacity: .45; cursor: not-allowed; }
+
+/* 場上區域中可點開視窗的區域（時計、處理）*/
+.zone-open {
+  width: 100%;
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  padding: 6px 8px;
+  font: inherit; color: var(--fg); text-align: left;
+  background: none; border: 0; border-radius: 6px;
+  cursor: pointer;
+}
+.zone-open:hover, .zone-open:focus-visible { background: var(--bg); outline: none; }
+.zone-open span { flex: 1; }
+.zone-open b { font-family: var(--font-display); font-variant-numeric: tabular-nums; }
+.zone-open i { font-size: .8rem; color: var(--muted); }
+.pick-card.view-only { cursor: default; }
+.pick-card.view-only:hover { border-color: var(--line); }
+
+/* 不公開的卡（能量）：像 Threads 的劇透遮罩，模糊＋閃爍顆粒，點擊才顯示 */
+.spoiler { position: relative; width: 100%; align-items: center; overflow: hidden; font: inherit; text-align: left; color: var(--fg); cursor: pointer; }
+.spoiler:hover { border-color: var(--accent); }
+.spoiler .row-pos { flex: none; }
+.spoiler-content { display: flex; gap: 10px; align-items: center; min-width: 0; filter: blur(7px); transition: filter .25s ease; user-select: none; }
+.spoiler.revealed .spoiler-content { filter: none; user-select: auto; }
+.spoiler-mask {
+  position: absolute; inset: 0 0 0 3.2em;
+  display: grid; place-items: center;
+  font-size: .85rem; font-weight: 600; color: var(--fg);
+  background-image:
+    radial-gradient(circle, color-mix(in srgb, var(--fg) 55%, transparent) 0 1px, transparent 1.5px),
+    radial-gradient(circle, color-mix(in srgb, var(--fg) 35%, transparent) 0 1px, transparent 1.5px);
+  background-size: 9px 9px, 13px 13px;
+  background-position: 0 0, 4px 6px;
+  animation: spoiler-sparkle 1.6s linear infinite;
+  transition: opacity .25s ease;
+}
+.spoiler-mask span { padding: 2px 10px; border-radius: 999px; background: color-mix(in srgb, var(--panel) 85%, transparent); }
+/* 點開後先停止動畫（動畫的透明度會蓋過一般樣式），再完全隱藏遮罩 */
+.spoiler.revealed .spoiler-mask { animation: none; opacity: 0; visibility: hidden; pointer-events: none; }
+@keyframes spoiler-sparkle {
+  0% { background-position: 0 0, 4px 6px; opacity: .9; }
+  50% { opacity: .6; }
+  100% { background-position: 9px 9px, -9px 19px; opacity: .9; }
+}
+@media (prefers-reduced-motion: reduce) { .spoiler-mask { animation: none; } }
+
+/* 卡片效果視窗 */
+.card-dialog-body { display: grid; gap: 6px; }
+.card-dialog-body .card-dialog-meta { font-size: .9rem; }
+.card-dialog-label { font-size: .95rem; margin-top: 8px; }
+.card-dialog-body .card-dialog-effect { color: var(--fg); white-space: pre-wrap; line-height: 1.7; }
+.card-dialog-body .card-dialog-effect.muted { color: var(--muted); }
+
+/* 標題列右側：牌堆、手牌張數 */
+.zone-chips { margin-left: auto; display: flex; gap: 6px; flex: none; }
+.zone-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 12px;
+  font-family: var(--font-display); font-weight: 600; font-variant-numeric: tabular-nums;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+/* 標題列的牌堆按鈕：點開牌堆功能的下拉選單 */
+.deck-menu { position: relative; }
+.deck-toggle { font: inherit; font-family: var(--font-display); font-weight: 600; color: var(--fg); cursor: pointer; }
+.deck-toggle:hover, .deck-toggle[aria-expanded="true"] { border-color: var(--accent); }
+.deck-toggle .caret { font-size: .7rem; color: var(--muted); transition: transform .15s; }
+.deck-toggle[aria-expanded="true"] .caret { transform: rotate(180deg); }
+.deck-menu-list { min-width: 200px; z-index: 20; }
+.deck-menu-list button:disabled { opacity: .45; cursor: not-allowed; }
+.deck-menu-list button:disabled:hover { background: none; }
+.menu-sep { height: 1px; margin: 4px 6px; background: var(--line); }
