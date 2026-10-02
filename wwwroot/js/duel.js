@@ -77,6 +77,89 @@ async function decodeSignal(text) {
   }
 }
 
+// ===== 連線診斷 =====
+// 連不上時，把雙方的網路位址類型、NAT 類型與各階段時間顯示出來，方便判斷原因。
+// 公網 IP 只顯示前兩段，避免把完整位址貼給別人。
+let diag = null;
+
+function maskIp(addr) {
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(addr)) return addr.split('.').slice(0, 2).join('.') + '.x.x';
+  if (addr.includes(':')) return addr.split(':').slice(0, 2).join(':') + ':…';
+  return addr.endsWith('.local') ? 'mDNS' : addr;
+}
+
+// 解析 SDP 中的 UDP 連線位址；同一個公網 IP 對不同 STUN 伺服器出現不同 port，表示是對稱式 NAT
+function analyzeCandidates(sdp) {
+  const list = [...(sdp || '').matchAll(/a=candidate:\S+ \d+ (\S+) \d+ (\S+) (\d+) typ (\S+)/g)]
+    .map(([, proto, addr, port, type]) => ({ proto: proto.toLowerCase(), addr, port, type }))
+    .filter((c) => c.proto === 'udp');
+  const counts = {};
+  for (const c of list) counts[c.type] = (counts[c.type] || 0) + 1;
+  const srflx = list.filter((c) => c.type === 'srflx');
+  const portsByIp = {};
+  for (const c of srflx) (portsByIp[c.addr] ||= new Set()).add(c.port);
+  let nat = 'diag.natUnknown';
+  if (!srflx.length) nat = 'diag.natNone';
+  else if (Object.values(portsByIp).some((s) => s.size > 1)) nat = 'diag.natSymmetric';
+  else if (srflx.length > 1) nat = 'diag.natCone';
+  return {
+    summary: Object.entries(counts).map(([k, v]) => `${k}×${v}`).join(', ') || '—',
+    nat,
+    srflx: srflx.map((c) => `${maskIp(c.addr)}:${c.port}`).join(' '),
+  };
+}
+
+function clock() {
+  const d = new Date();
+  return [d.getHours(), d.getMinutes(), d.getSeconds()].map((n) => String(n).padStart(2, '0')).join(':');
+}
+
+function diagStart(p) {
+  diag = { p, start: performance.now(), log: [] };
+  p.addEventListener('icegatheringstatechange', () => diagLog(`ICE gathering: ${p.iceGatheringState}`));
+  p.addEventListener('iceconnectionstatechange', () => diagLog(`ICE: ${p.iceConnectionState}`));
+  p.addEventListener('connectionstatechange', () => {
+    diagLog(`connection: ${p.connectionState}`);
+    if (p.connectionState === 'connected') diagSelectedPair(p);
+  });
+  diagLog('start');
+}
+
+function diagLog(msg) {
+  if (!diag) return;
+  diag.log.push(`${clock()} (+${((performance.now() - diag.start) / 1000).toFixed(1)}s) ${msg}`);
+  renderDiag();
+}
+
+// 連上時記錄實際使用的位址類型（host = 區網、srflx = 透過 NAT 打洞、prflx = 連線中才發現的位址）
+async function diagSelectedPair(p) {
+  try {
+    const stats = [...(await p.getStats()).values()];
+    const pair = stats.find((s) => s.type === 'candidate-pair' && s.state === 'succeeded' && s.nominated);
+    if (!pair) return;
+    const type = (id) => stats.find((s) => s.id === id)?.candidateType || '?';
+    diagLog(`pair: ${type(pair.localCandidateId)} ↔ ${type(pair.remoteCandidateId)}`);
+  } catch { /* 取不到統計資料就略過 */ }
+}
+
+function renderDiag() {
+  if (!diag) return;
+  const p = diag.p;
+  const local = analyzeCandidates(p.localDescription?.sdp);
+  const remote = analyzeCandidates(p.remoteDescription?.sdp);
+  const line = (label, a) => `${t(label)}: ${a.summary} | ${t(a.nat)}${a.srflx ? ` | ${a.srflx}` : ''}`;
+  $('#diag-text').textContent = [
+    `${t('diag.role')}: ${t(role === 'host' ? 'diag.host' : 'diag.guest')} | ${navigator.userAgent.match(/(Edg|Chrome|Firefox|Safari)\/[\d.]+/g)?.pop() || '?'}`,
+    line('diag.local', local),
+    p.remoteDescription ? line('diag.remote', remote) : `${t('diag.remote')}: —`,
+    '',
+    ...diag.log,
+  ].join('\n');
+  $('#diag').hidden = false;
+}
+
+window.addEventListener('langchange', renderDiag);
+
 // ===== WebRTC =====
 // 等待瀏覽器收集完連線位址（ICE candidates），才把完整資訊放進代碼
 function waitIceGathering(p) {
@@ -106,11 +189,15 @@ function closeAll() {
 
 function backToLobby() {
   closeAll();
+  diag = null;
+  $('#diag').hidden = true;
+  $('#diag').open = false;
   showView('lobby');
 }
 
 function newPeer() {
   const p = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+  diagStart(p);
   p.addEventListener('connectionstatechange', () => {
     if (pc === p && p.connectionState === 'failed') onConnectFailed();
   });
@@ -126,6 +213,7 @@ function onConnectFailed() {
   clearTimeout(connectTimer);
   setStatus(statusSelector(), 'duel.failed', 'bad');
   if (role === 'host') $('#btn-connect').disabled = false;
+  $('#diag').open = true; // 連不上時直接展開診斷資訊
 }
 
 // 雙方共用的資料通道事件
@@ -172,6 +260,7 @@ async function createRoom() {
     await waitIceGathering(p);
     if (my !== session) return;
     $('#offer-code').value = await encodeSignal('offer', p.localDescription.sdp);
+    diagLog('offer code ready');
     $('#btn-copy-offer').disabled = false;
     $('#btn-connect').disabled = false;
     setStatus('#host-status', 'duel.waitingAnswer', 'busy');
@@ -200,6 +289,7 @@ async function acceptAnswer(text) {
   setStatus('#host-status', 'duel.connecting', 'busy');
   try {
     await pc.setRemoteDescription({ type: 'answer', sdp: signal.sdp });
+    diagLog('answer applied');
     connectTimer = setTimeout(() => { if (my === session && channel?.readyState !== 'open') onConnectFailed(); }, CONNECT_TIMEOUT_MS);
   } catch (err) {
     console.warn(err);
@@ -246,10 +336,12 @@ async function makeAnswer(text) {
     pc = p;
     p.addEventListener('datachannel', (e) => { if (pc === p) attachChannel(e.channel); });
     await p.setRemoteDescription({ type: 'offer', sdp: signal.sdp });
+    diagLog('offer applied');
     await p.setLocalDescription(await p.createAnswer());
     await waitIceGathering(p);
     if (my !== session) return;
     $('#answer-code').value = await encodeSignal('answer', p.localDescription.sdp);
+    diagLog('answer code ready');
     $('#offer-input').readOnly = true;
     $('#answer-step').hidden = false;
     setStatus('#join-status', 'duel.waitingHost', 'busy');
@@ -279,6 +371,14 @@ $('#btn-create-room').addEventListener('click', () => { if (supportsWebRTC()) cr
 $('#btn-join-room').addEventListener('click', () => { if (supportsWebRTC()) openJoin(); });
 $('#btn-copy-offer').addEventListener('click', () => copyCode('#offer-code'));
 $('#btn-copy-answer').addEventListener('click', () => copyCode('#answer-code'));
+$('#btn-copy-diag').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText($('#diag-text').textContent);
+    toast(t('duel.copied'));
+  } catch {
+    toast(t('duel.copyFailed'), true);
+  }
+});
 
 $('#answer-form').addEventListener('submit', (e) => {
   e.preventDefault();

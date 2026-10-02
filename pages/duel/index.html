@@ -64,6 +64,13 @@
       <p class="muted" data-i18n="duel.wip">對戰功能開發中</p>
       <button type="button" class="btn danger" id="btn-leave" data-i18n="duel.leave">離開房間</button>
     </section>
+
+    <!-- 連線診斷：連不上時用來判斷原因 -->
+    <details id="diag" class="diag" hidden>
+      <summary data-i18n="duel.diag">連線診斷</summary>
+      <pre id="diag-text"></pre>
+      <button type="button" class="btn" id="btn-copy-diag" data-i18n="duel.copyDiag">複製診斷資訊</button>
+    </details>
   </main>
 
   <script src="../../wwwroot/lib/bootstrap/bootstrap.bundle.min.js"></script>
