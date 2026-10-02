@@ -13,30 +13,28 @@
 
 /* 房間卡片 */
 .room-card {
-  width: min(360px, 100%);
+  width: min(440px, 100%);
   display: grid;
   justify-items: center;
-  gap: 12px;
+  gap: 14px;
   text-align: center;
   padding: 24px;
 }
-.room-card .field, .room-card .form-actions { width: 100%; }
-.room-card .form-actions { justify-content: center; }
-.room-code {
+.room-card h2 { font-size: 1.25rem; }
+
+/* 交換連線碼的步驟 */
+.step { width: 100%; display: grid; gap: 8px; text-align: left; }
+.step-label { font-weight: 600; font-size: .95rem; }
+.step .btn { justify-self: start; }
+.code-box {
   font-family: var(--font-mono);
-  font-size: 2.4rem;
-  font-weight: 700;
-  letter-spacing: .2em;
-  padding-left: .2em; /* 抵銷最後一個字後的字距，讓代碼視覺置中 */
-  user-select: all;
+  font-size: .8rem;
+  line-height: 1.5;
+  word-break: break-all;
+  resize: vertical;
+  min-height: 4.5em;
 }
-.code-input {
-  font-family: var(--font-mono);
-  font-size: 1.6rem;
-  letter-spacing: .2em;
-  text-align: center;
-  text-transform: uppercase;
-}
+.code-box[readonly] { color: var(--muted); cursor: text; }
 
 .room-status { margin: 0; min-height: 1.5em; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .room-status.ok { color: var(--ok); }

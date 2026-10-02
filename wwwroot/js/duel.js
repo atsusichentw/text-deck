@@ -1,20 +1,24 @@
 'use strict';
 
-// ===== 對戰頁：建立 / 加入房間 =====
-// 需先載入 lib/peerjs/peerjs.min.js、lib/bootstrap/bootstrap.bundle.min.js、i18n.js、common.js
-// GitHub Pages 沒有伺服器，雙方以 WebRTC 點對點連線；PeerJS 的公用配對伺服器只負責牽線。
-// 房間代碼就是房主的連線 ID（加上前綴），對方輸入代碼即可直接連到房主。
+// ===== 對戰頁：手動交換連線碼，兩個瀏覽器以 WebRTC 直接連線 =====
+// 需先載入 lib/bootstrap/bootstrap.bundle.min.js、i18n.js、common.js
+// 不經過任何配對伺服器：
+//   房主產生「連線碼」(offer) → 自行傳給對手 → 對手貼上後產生「回覆碼」(answer) → 傳回給房主貼上 → 連線
+// 連線碼內含 WebRTC 的連線資訊（SDP），壓縮後以 base64url 表示，方便複製貼上。
+// STUN 只用來讓瀏覽器查出自己的對外網路位址，連線碼與對戰資料都不會經過它；
+// 少了它就只有同一個區域網路內的裝置能互連。
 
-const ROOM_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-const ROOM_CODE_LENGTH = 6;
-const PEER_PREFIX = 'textdeck-room-';
-const JOIN_TIMEOUT_MS = 15000;
+const ICE_SERVERS = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
+const ICE_GATHER_TIMEOUT_MS = 4000;   // 收集連線位址最多等多久，逾時就用已收集到的
+const CONNECT_TIMEOUT_MS = 20000;     // 房主貼上回覆碼後，多久沒連上就視為失敗
+const CODE_PREFIX_DEFLATE = 'TD1';    // 壓縮過的代碼
+const CODE_PREFIX_PLAIN = 'TD0';      // 瀏覽器不支援壓縮時的代碼
 
-let peer = null;     // 自己的 PeerJS 連線
-let conn = null;     // 與對手之間的資料通道
-let roomCode = null;
-let isHost = false;
-let joinTimer = null;
+let pc = null;          // RTCPeerConnection
+let channel = null;     // 與對手之間的資料通道
+let role = null;        // 'host' | 'guest'
+let session = 0;        // 每次開始或結束都 +1，讓舊的非同步結果失效
+let connectTimer = null;
 
 // ===== 畫面切換 =====
 const VIEWS = ['lobby', 'host', 'join', 'room'];
@@ -29,46 +33,75 @@ function setStatus(sel, key, kind = '', params) {
   el.className = `room-status${kind ? ' ' + kind : ''}`;
 }
 
-// ===== 房間代碼 =====
-// 以 crypto 亂數產生 6 位英數字（大寫 A–Z、0–9），捨棄會造成分布不均的值
-function randomRoomCode() {
-  const limit = 256 - (256 % ROOM_CHARS.length);
-  let code = '';
-  while (code.length < ROOM_CODE_LENGTH) {
-    for (const b of crypto.getRandomValues(new Uint8Array(ROOM_CODE_LENGTH))) {
-      if (b < limit && code.length < ROOM_CODE_LENGTH) code += ROOM_CHARS[b % ROOM_CHARS.length];
-    }
+// ===== 連線碼編碼 =====
+function toBase64Url(bytes) {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function fromBase64Url(text) {
+  const b64 = text.replace(/-/g, '+').replace(/_/g, '/');
+  const bin = atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4));
+  return Uint8Array.from(bin, (c) => c.charCodeAt(0));
+}
+
+// 資料損毀時，錯誤會由讀取端拋出；寫入端的同一個錯誤在這裡吃掉，避免出現未處理的 Promise 錯誤
+async function transform(bytes, stream) {
+  const writer = stream.writable.getWriter();
+  writer.write(bytes).catch(() => {});
+  writer.close().catch(() => {});
+  return new Uint8Array(await new Response(stream.readable).arrayBuffer());
+}
+
+// kind：'offer'（房主的連線碼）或 'answer'（對手的回覆碼）
+async function encodeSignal(kind, sdp) {
+  const bytes = new TextEncoder().encode(JSON.stringify({ k: kind, s: sdp }));
+  if (typeof CompressionStream === 'undefined') return `${CODE_PREFIX_PLAIN}.${toBase64Url(bytes)}`;
+  return `${CODE_PREFIX_DEFLATE}.${toBase64Url(await transform(bytes, new CompressionStream('deflate-raw')))}`;
+}
+
+// 解析貼上的代碼；格式不對時丟出以翻譯 key 為訊息的錯誤
+async function decodeSignal(text) {
+  const code = text.replace(/\s+/g, ''); // 通訊軟體可能自動換行，先去掉空白
+  const match = /^(TD[01])\.([A-Za-z0-9_-]+)$/.exec(code);
+  if (!match) throw new Error('duel.badCode');
+  try {
+    let bytes = fromBase64Url(match[2]);
+    if (match[1] === CODE_PREFIX_DEFLATE) bytes = await transform(bytes, new DecompressionStream('deflate-raw'));
+    const data = JSON.parse(new TextDecoder().decode(bytes));
+    if ((data.k !== 'offer' && data.k !== 'answer') || typeof data.s !== 'string') throw new Error();
+    return { kind: data.k, sdp: data.s };
+  } catch {
+    throw new Error('duel.badCode');
   }
-  return code;
 }
 
-// 全形轉半形、轉大寫，只留英數字
-function normalizeRoomCode(value) {
-  return value.normalize('NFKC').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, ROOM_CODE_LENGTH);
+// ===== WebRTC =====
+// 等待瀏覽器收集完連線位址（ICE candidates），才把完整資訊放進代碼
+function waitIceGathering(p) {
+  if (p.iceGatheringState === 'complete') return Promise.resolve();
+  return new Promise((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      p.removeEventListener('icegatheringstatechange', check);
+      resolve();
+    };
+    const check = () => { if (p.iceGatheringState === 'complete') done(); };
+    p.addEventListener('icegatheringstatechange', check);
+    const timer = setTimeout(done, ICE_GATHER_TIMEOUT_MS);
+  });
 }
 
-// 回傳 [翻譯 key, 參數]
-function errorMessage(err) {
-  switch (err?.type) {
-    case 'browser-incompatible': return ['duel.errBrowser'];
-    case 'peer-unavailable': return ['duel.errNotFound'];
-    case 'network':
-    case 'server-error':
-    case 'socket-error':
-    case 'socket-closed': return ['duel.errServer'];
-    default: return ['duel.errOther', { type: err?.type || err?.message || '?' }];
-  }
-}
-
-// ===== 連線管理 =====
 function closeAll() {
-  clearTimeout(joinTimer);
-  const c = conn;
-  conn = null;
-  c?.close();
-  peer?.destroy();
-  peer = null;
-  roomCode = null;
+  session += 1;
+  clearTimeout(connectTimer);
+  const ch = channel;
+  const p = pc;
+  channel = null;
+  pc = null;
+  ch?.close();
+  p?.close();
 }
 
 function backToLobby() {
@@ -76,158 +109,200 @@ function backToLobby() {
   showView('lobby');
 }
 
-function enterRoom() {
-  clearTimeout(joinTimer);
-  $('#room-code-connected').textContent = roomCode;
-  setStatus('#room-status', isHost ? 'duel.opponentJoined' : 'duel.joined', 'ok');
-  showView('room');
+function newPeer() {
+  const p = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+  p.addEventListener('connectionstatechange', () => {
+    if (pc === p && p.connectionState === 'failed') onConnectFailed();
+  });
+  return p;
 }
 
-function send(msg) {
-  if (conn?.open) conn.send(msg);
+function statusSelector() {
+  if (!$('#view-room').hidden) return '#room-status';
+  return role === 'host' ? '#host-status' : '#join-status';
+}
+
+function onConnectFailed() {
+  clearTimeout(connectTimer);
+  setStatus(statusSelector(), 'duel.failed', 'bad');
+  if (role === 'host') $('#btn-connect').disabled = false;
 }
 
 // 雙方共用的資料通道事件
-function attachConnection(c) {
-  conn = c;
-  c.on('open', () => {
-    if (conn !== c) return;
-    if (isHost) {
-      send({ type: 'welcome' });
-      enterRoom();
-    }
+function attachChannel(ch) {
+  channel = ch;
+  ch.addEventListener('open', () => {
+    if (channel !== ch) return;
+    clearTimeout(connectTimer);
+    setStatus('#room-status', role === 'host' ? 'duel.opponentJoined' : 'duel.joined', 'ok');
+    showView('room');
   });
-  c.on('data', (msg) => {
-    if (conn !== c) return;
-    if (msg?.type === 'welcome') enterRoom();
-    if (msg?.type === 'full') {
-      closeAll();
-      setStatus('#join-status', 'duel.full', 'bad');
-      $('#btn-join-submit').disabled = false;
-    }
+  ch.addEventListener('close', () => {
+    if (channel !== ch) return; // 自己主動關閉的不處理
+    channel = null;
+    setStatus('#room-status', 'duel.peerLeft', 'bad');
   });
-  c.on('close', () => {
-    if (conn !== c) return; // 自己主動關閉的不處理
-    conn = null;
-    if (isHost) {
-      // 房間保留，繼續等下一位對手
-      toast(t('duel.opponentLeft'));
-      showView('host');
-      setStatus('#host-status', 'duel.waiting', 'busy');
-    } else {
-      setStatus('#room-status', 'duel.hostClosed', 'bad');
-    }
-  });
+  // 對戰資料之後由這裡接收
+  ch.addEventListener('message', () => {});
 }
 
-// ===== 建立房間 =====
-function createRoom(retries = 3) {
+function supportsWebRTC() {
+  if (typeof RTCPeerConnection !== 'undefined') return true;
+  toast(t('duel.errBrowser'), true);
+  return false;
+}
+
+// ===== 建立房間（房主）=====
+async function createRoom() {
   closeAll();
-  isHost = true;
-  roomCode = randomRoomCode();
-  $('#room-code').textContent = roomCode;
-  setStatus('#host-status', 'duel.creating', 'busy');
+  const my = session;
+  role = 'host';
+  $('#offer-code').value = '';
+  $('#answer-input').value = '';
+  $('#btn-copy-offer').disabled = true;
+  $('#btn-connect').disabled = true;
+  setStatus('#host-status', 'duel.preparing', 'busy');
   showView('host');
 
-  const p = new Peer(PEER_PREFIX + roomCode);
-  peer = p;
-  p.on('open', () => setStatus('#host-status', 'duel.waiting', 'busy'));
-  p.on('connection', (c) => {
-    if (conn) {
-      // 已有對手，拒絕其他人
-      c.on('open', () => { c.send({ type: 'full' }); setTimeout(() => c.close(), 500); });
-      return;
-    }
-    attachConnection(c);
-  });
-  // 等待中與配對伺服器斷線時自動重連（不影響已建立的對戰連線）
-  p.on('disconnected', () => { if (peer === p && !p.destroyed) p.reconnect(); });
-  p.on('error', (err) => {
-    if (peer !== p) return;
-    if (err.type === 'unavailable-id' && retries > 0) {
-      createRoom(retries - 1); // 代碼剛好被用走，換一組
-      return;
-    }
-    const [key, params] = errorMessage(err);
-    setStatus('#host-status', key, 'bad', params);
-  });
+  try {
+    const p = newPeer();
+    pc = p;
+    attachChannel(p.createDataChannel('tdeck', { ordered: true }));
+    await p.setLocalDescription(await p.createOffer());
+    await waitIceGathering(p);
+    if (my !== session) return;
+    $('#offer-code').value = await encodeSignal('offer', p.localDescription.sdp);
+    $('#btn-copy-offer').disabled = false;
+    $('#btn-connect').disabled = false;
+    setStatus('#host-status', 'duel.waitingAnswer', 'busy');
+  } catch (err) {
+    console.warn(err);
+    if (my === session) setStatus('#host-status', 'duel.errBrowser', 'bad');
+  }
 }
 
-// ===== 加入房間 =====
-function joinRoom(code) {
-  closeAll();
-  isHost = false;
-  roomCode = code;
-  setStatus('#join-status', 'duel.connecting', 'busy');
-  $('#btn-join-submit').disabled = true;
+// 房主貼上對手的回覆碼
+async function acceptAnswer(text) {
+  const my = session;
+  if (!text.trim()) { setStatus('#host-status', 'duel.pasteFirst', 'bad'); return; }
+  let signal;
+  try {
+    signal = await decodeSignal(text);
+  } catch (err) {
+    setStatus('#host-status', err.message, 'bad');
+    return;
+  }
+  if (my !== session) return;
+  if (signal.kind !== 'answer') { setStatus('#host-status', 'duel.notAnswer', 'bad'); return; }
+  if (pc?.signalingState !== 'have-local-offer') { setStatus('#host-status', 'duel.codeUsed', 'bad'); return; }
 
-  const p = new Peer();
-  peer = p;
-  const fail = (key, params) => {
-    if (peer !== p) return;
+  $('#btn-connect').disabled = true;
+  setStatus('#host-status', 'duel.connecting', 'busy');
+  try {
+    await pc.setRemoteDescription({ type: 'answer', sdp: signal.sdp });
+    connectTimer = setTimeout(() => { if (my === session && channel?.readyState !== 'open') onConnectFailed(); }, CONNECT_TIMEOUT_MS);
+  } catch (err) {
+    console.warn(err);
+    if (my !== session) return;
+    setStatus('#host-status', 'duel.badCode', 'bad');
+    $('#btn-connect').disabled = false;
+  }
+}
+
+// ===== 加入房間（對手）=====
+function openJoin() {
+  closeAll();
+  role = 'guest';
+  $('#offer-input').value = '';
+  $('#offer-input').readOnly = false;
+  $('#btn-make-answer').disabled = false;
+  $('#answer-code').value = '';
+  $('#answer-step').hidden = true;
+  setStatus('#join-status', null);
+  showView('join');
+  $('#offer-input').focus();
+}
+
+// 對手貼上房主的連線碼，產生回覆碼
+async function makeAnswer(text) {
+  closeAll();
+  const my = session;
+  role = 'guest';
+  if (!text.trim()) { setStatus('#join-status', 'duel.pasteFirst', 'bad'); return; }
+  let signal;
+  try {
+    signal = await decodeSignal(text);
+  } catch (err) {
+    setStatus('#join-status', err.message, 'bad');
+    return;
+  }
+  if (my !== session) return;
+  if (signal.kind !== 'offer') { setStatus('#join-status', 'duel.notOffer', 'bad'); return; }
+
+  $('#btn-make-answer').disabled = true;
+  setStatus('#join-status', 'duel.preparing', 'busy');
+  try {
+    const p = newPeer();
+    pc = p;
+    p.addEventListener('datachannel', (e) => { if (pc === p) attachChannel(e.channel); });
+    await p.setRemoteDescription({ type: 'offer', sdp: signal.sdp });
+    await p.setLocalDescription(await p.createAnswer());
+    await waitIceGathering(p);
+    if (my !== session) return;
+    $('#answer-code').value = await encodeSignal('answer', p.localDescription.sdp);
+    $('#offer-input').readOnly = true;
+    $('#answer-step').hidden = false;
+    setStatus('#join-status', 'duel.waitingHost', 'busy');
+  } catch (err) {
+    console.warn(err);
+    if (my !== session) return;
     closeAll();
-    setStatus('#join-status', key, 'bad', params);
-    $('#btn-join-submit').disabled = false;
-  };
-  p.on('open', () => attachConnection(p.connect(PEER_PREFIX + code, { reliable: true })));
-  p.on('error', (err) => fail(...errorMessage(err)));
-  joinTimer = setTimeout(() => fail('duel.timeout'), JOIN_TIMEOUT_MS);
+    setStatus('#join-status', 'duel.badCode', 'bad');
+    $('#btn-make-answer').disabled = false;
+  }
+}
+
+// ===== 複製 =====
+async function copyCode(sel) {
+  const box = $(sel);
+  try {
+    await navigator.clipboard.writeText(box.value);
+    toast(t('duel.copied'));
+  } catch {
+    box.select(); // 無法自動複製時先幫忙選取，讓使用者自己按複製
+    toast(t('duel.copyFailed'), true);
+  }
 }
 
 // ===== 事件 =====
-$('#btn-create-room').addEventListener('click', () => {
-  if (typeof Peer === 'undefined') { toast(t('duel.libFailed'), true); return; }
-  createRoom();
-});
+$('#btn-create-room').addEventListener('click', () => { if (supportsWebRTC()) createRoom(); });
+$('#btn-join-room').addEventListener('click', () => { if (supportsWebRTC()) openJoin(); });
+$('#btn-copy-offer').addEventListener('click', () => copyCode('#offer-code'));
+$('#btn-copy-answer').addEventListener('click', () => copyCode('#answer-code'));
 
-$('#btn-join-room').addEventListener('click', () => {
-  if (typeof Peer === 'undefined') { toast(t('duel.libFailed'), true); return; }
-  $('#join-code').value = '';
-  setStatus('#join-status', null);
-  $('#btn-join-submit').disabled = false;
-  showView('join');
-  $('#join-code').focus();
-});
-
-$('#btn-copy-code').addEventListener('click', async () => {
-  try {
-    await navigator.clipboard.writeText($('#room-code').textContent);
-    toast(t('duel.copied'));
-  } catch {
-    toast(t('duel.copyFailed'), true);
-  }
-});
-
-// 代碼輸入框只保留英數字（輸入法組字中先不處理）
-function keepRoomCode(e) {
-  if (e.isComposing) return;
-  const el = $('#join-code');
-  const code = normalizeRoomCode(el.value);
-  if (code !== el.value) el.value = code;
-}
-$('#join-code').addEventListener('input', keepRoomCode);
-$('#join-code').addEventListener('compositionend', keepRoomCode);
-
-$('#view-join').addEventListener('submit', (e) => {
+$('#answer-form').addEventListener('submit', (e) => {
   e.preventDefault();
-  const code = normalizeRoomCode($('#join-code').value);
-  if (code.length !== ROOM_CODE_LENGTH) {
-    setStatus('#join-status', 'duel.codeLength', 'bad', { n: ROOM_CODE_LENGTH });
-    return;
-  }
-  joinRoom(code);
+  acceptAnswer($('#answer-input').value);
+});
+
+$('#offer-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  makeAnswer($('#offer-input').value);
 });
 
 $('#btn-cancel-host').addEventListener('click', backToLobby);
 $('#btn-cancel-join').addEventListener('click', backToLobby);
 $('#btn-leave').addEventListener('click', async () => {
-  const ok = await confirmDialog({
-    title: t('duel.leave'),
-    message: t('duel.confirmLeave'),
-    okText: t('duel.leave'),
-    danger: true,
-  });
-  if (!ok) return;
+  // 對手已經離開時直接回大廳，不用再確認
+  if (channel) {
+    const ok = await confirmDialog({
+      title: t('duel.leave'),
+      message: t('duel.confirmLeave'),
+      okText: t('duel.leave'),
+      danger: true,
+    });
+    if (!ok) return;
+  }
   backToLobby();
 });
 
