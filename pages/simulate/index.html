@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;700&amp;family=Noto+Sans+TC:wght@400;500;700&amp;family=Outfit:wght@500;600;700&amp;family=Cormorant+Garamond:ital,wght@1,600&amp;family=Playfair+Display:ital,wght@1,700&amp;display=swap">
   <link rel="stylesheet" href="../../wwwroot/lib/bootstrap-icons/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="../../wwwroot/lib/bootstrap/bootstrap-modal.min.css">
+  <link rel="stylesheet" href="../../wwwroot/lib/bootstrap/bootstrap-custom.min.css">
   <link rel="stylesheet" href="../../wwwroot/css/site.css">
   <link rel="stylesheet" href="../../wwwroot/css/simulate.css">
 </head>
@@ -35,8 +35,9 @@
 
     <!-- 選好牌組之後：左邊場上區域、中間聊天室（log）、右邊手牌 -->
     <div id="table" class="sim-table" hidden>
-      <aside class="panel side-panel zone-panel" aria-labelledby="zones-title">
-        <h3 id="zones-title" class="hand-title" data-i18n="simulate.zones">場上區域</h3>
+      <!-- 大螢幕直接顯示；小螢幕收成 offcanvas，用左邊緣的書籤按鈕拉出（參考 ecollege 的 sidebar）-->
+      <aside class="panel side-panel zone-panel offcanvas-lg offcanvas-start" id="zone-offcanvas" tabindex="-1" aria-labelledby="zones-title">
+        <h3 id="zones-title" class="hand-title"><span data-i18n="simulate.zones">場上區域</span><button type="button" class="offcanvas-close" data-bs-dismiss="offcanvas" data-bs-target="#zone-offcanvas" data-i18n-aria-label="dialog.close" aria-label="關閉"><i class="bi bi-x-lg" aria-hidden="true"></i></button></h3>
         <div id="zone-list" class="zone-list"></div>
       </aside>
 
@@ -68,11 +69,21 @@
         <div id="chat-messages" class="chat-messages" role="log" aria-live="polite"></div>
       </section>
 
-      <aside class="panel side-panel hand-panel" aria-labelledby="hand-title">
-        <h3 id="hand-title" class="hand-title"><span data-i18n="zone.hand">手牌</span><span class="muted" id="hand-total"></span></h3>
+      <!-- 大螢幕直接顯示；小螢幕收成 offcanvas，用右邊緣的書籤按鈕拉出 -->
+      <aside class="panel side-panel hand-panel offcanvas-lg offcanvas-end" id="hand-offcanvas" tabindex="-1" aria-labelledby="hand-title">
+        <h3 id="hand-title" class="hand-title"><span data-i18n="zone.hand">手牌</span><span class="hand-title-end"><span class="muted" id="hand-total"></span><button type="button" class="offcanvas-close" data-bs-dismiss="offcanvas" data-bs-target="#hand-offcanvas" data-i18n-aria-label="dialog.close" aria-label="關閉"><i class="bi bi-x-lg" aria-hidden="true"></i></button></span></h3>
         <div id="hand-list" class="hand-list"></div>
       </aside>
     </div>
+
+    <!-- 小螢幕的書籤按鈕：貼在畫面左右邊緣，點了拉出場上區域 / 手牌 -->
+    <button type="button" class="bookmark-tab bookmark-left" id="tab-zones" data-bs-toggle="offcanvas" data-bs-target="#zone-offcanvas" aria-controls="zone-offcanvas" data-i18n-aria-label="simulate.zones" aria-label="場上區域" data-i18n-title="simulate.zones" title="場上區域">
+      <span class="bookmark-circle"><i class="bi bi-grid-3x3-gap" aria-hidden="true"></i></span>
+    </button>
+    <button type="button" class="bookmark-tab bookmark-right" id="tab-hand" data-bs-toggle="offcanvas" data-bs-target="#hand-offcanvas" aria-controls="hand-offcanvas" data-i18n-aria-label="zone.hand" aria-label="手牌" data-i18n-title="zone.hand" title="手牌">
+      <span class="bookmark-circle"><i class="bi bi-hand-index-thumb" aria-hidden="true"></i></span>
+      <span class="bookmark-count" id="tab-hand-count">0</span>
+    </button>
   </main>
 
   <!-- 區域視窗（時計、處理、能量、查看牌庫）：點左側區域或牌堆選單打開；可操作的區域用每張卡的漢堡選單 -->

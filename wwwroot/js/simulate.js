@@ -218,6 +218,7 @@ function addToHand(card) {
 // 右側手牌
 function renderHand() {
   $('#hand-total').textContent = t('list.groupCount', { n: hand.length });
+  $('#tab-hand-count').textContent = hand.length; // 小螢幕手牌書籤上的張數
   $('#hand-list').innerHTML = hand.length
     ? hand.map((c, i) => cardHtml(c, `hand-${i}`, rowMenuHtml(i, handMenuItems(c)))).join('')
     : `<p class="muted hand-empty">${esc(t('simulate.handEmpty'))}</p>`;
@@ -292,6 +293,8 @@ $('#btn-start').addEventListener('click', () => {
 
 $('#btn-change-deck').addEventListener('click', () => {
   closeDeckMenu();
+  // 小螢幕上開著的場上區域 / 手牌 offcanvas 一併收起
+  for (const id of ['#zone-offcanvas', '#hand-offcanvas']) bootstrap.Offcanvas.getInstance($(id))?.hide();
   selectedIndex = null;
   messages = [];
   pile = [];

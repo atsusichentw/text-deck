@@ -54,23 +54,63 @@
 .zone-panel { grid-area: zones; }
 .chat { grid-area: chat; }
 .hand-panel { grid-area: hand; }
-/* 中等寬度：聊天室在上，場上區域與手牌並排在下 */
-@media (max-width: 1100px) {
-  .sim-table {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) minmax(0, 40%);
-    grid-template-areas: "chat chat" "zones hand";
-    gap: 12px;
-  }
+@media (max-width: 1199.98px) and (min-width: 992px) {
+  .sim-table { grid-template-columns: 220px minmax(0, 1fr) 260px; gap: 12px; }
 }
-/* 手機：由上往下排列 */
-@media (max-width: 600px) {
-  .sim-table {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) minmax(0, 28%) minmax(0, 28%);
-    grid-template-areas: "chat" "zones" "hand";
-  }
+/* 小螢幕（Bootstrap 的 lg 以下）：場上區域與手牌變成 offcanvas，畫面只留聊天室 */
+@media (max-width: 991.98px) {
+  .sim-table { grid-template-columns: minmax(0, 1fr); grid-template-areas: "chat"; }
 }
+
+/* offcanvas：顏色對應網站的主題變數；大螢幕時 Bootstrap 會把背景強制設成透明，這裡補回面板底色 */
+.side-panel.offcanvas-lg {
+  --bs-offcanvas-width: min(340px, 86vw);
+  --bs-offcanvas-bg: var(--panel);
+  --bs-offcanvas-color: var(--fg);
+  --bs-offcanvas-border-color: var(--line);
+  --bs-offcanvas-box-shadow: 0 10px 30px rgb(0 0 0 / .25);
+}
+@media (min-width: 992px) {
+  .side-panel.offcanvas-lg { background-color: var(--panel) !important; }
+  .offcanvas-close { display: none; }
+}
+@media (max-width: 991.98px) {
+  .side-panel.offcanvas-lg { border-radius: 0; border: 0; }
+}
+.offcanvas-backdrop { --bs-backdrop-opacity: .4; }
+.offcanvas-close {
+  width: 32px; height: 32px; flex: none;
+  display: inline-grid; place-items: center;
+  padding: 0; margin: -6px -8px -6px 0;
+  font-size: .9rem; color: var(--muted);
+  background: none; border: 0; border-radius: 50%;
+  cursor: pointer;
+}
+.offcanvas-close:hover { color: var(--fg); background: var(--bg); }
+.hand-title-end { display: inline-flex; align-items: center; gap: 10px; }
+
+/* 書籤按鈕（參考 ecollege 的 sidebar）：貼齊畫面邊緣的舌片，裡面是白色圓形 icon；只在小螢幕、聊天室畫面出現 */
+.bookmark-tab {
+  position: fixed; top: 42%; z-index: 1040;
+  display: none; align-items: center; gap: 4px;
+  padding: .4rem .55rem;
+  border: 0; cursor: pointer;
+  box-shadow: 0 4px 10px rgb(0 0 0 / .22);
+}
+.bookmark-left { left: 0; border-radius: 0 5rem 5rem 0; background: #A78BFA; }
+.bookmark-right { right: 0; border-radius: 5rem 0 0 5rem; background: #60A5FA; flex-direction: row-reverse; }
+.bookmark-circle {
+  width: 2rem; height: 2rem;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: #fff; color: #111;
+  font-size: .95rem;
+}
+.bookmark-count { min-width: 1.4em; font-family: var(--font-display); font-weight: 700; font-size: .85rem; color: #fff; text-align: center; font-variant-numeric: tabular-nums; }
+@media (max-width: 991.98px) {
+  .in-chat .bookmark-tab { display: flex; }
+}
+
 .chat {
   min-height: 0;
   display: flex; flex-direction: column;
