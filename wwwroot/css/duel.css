@@ -1,0 +1,53 @@
+/* 對戰頁 */
+.duel-page { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
+
+/* 大廳：內容置於導覽列以下區域的正中間 */
+.duel-lobby {
+  flex: 1;
+  width: 100%;
+  display: grid;
+  place-items: center;
+}
+.lobby-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; }
+.lobby-btn { min-width: 180px; padding: 14px 28px; font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; letter-spacing: .04em; border-radius: 10px; }
+
+/* 房間卡片 */
+.room-card {
+  width: min(360px, 100%);
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  text-align: center;
+  padding: 24px;
+}
+.room-card .field, .room-card .form-actions { width: 100%; }
+.room-card .form-actions { justify-content: center; }
+.room-code {
+  font-family: var(--font-mono);
+  font-size: 2.4rem;
+  font-weight: 700;
+  letter-spacing: .2em;
+  padding-left: .2em; /* 抵銷最後一個字後的字距，讓代碼視覺置中 */
+  user-select: all;
+}
+.code-input {
+  font-family: var(--font-mono);
+  font-size: 1.6rem;
+  letter-spacing: .2em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.room-status { margin: 0; min-height: 1.5em; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.room-status.ok { color: var(--ok); }
+.room-status.bad { color: var(--bad); }
+.room-status.busy::before {
+  content: "";
+  width: 14px; height: 14px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .room-status.busy::before { animation-duration: 3s; } }

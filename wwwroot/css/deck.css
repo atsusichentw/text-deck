@@ -1,0 +1,55 @@
+/* 管理牌組頁 */
+.deck-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.deck-bar select { min-width: 180px; }
+.sep { width: 1px; height: 24px; background: var(--line); margin: 0 4px; }
+
+.layout { display: grid; grid-template-columns: 360px 1fr; gap: 16px; align-items: start; }
+@media (max-width: 820px) { .layout { grid-template-columns: 1fr; } }
+#card-form { display: grid; gap: 12px; position: sticky; top: 16px; }
+@media (max-width: 820px) { #card-form { position: static; } }
+
+.deck-name { display: flex; align-items: center; gap: 12px; padding: 12px 16px; }
+.deck-name span { font-family: var(--font-display); font-weight: 600; white-space: nowrap; }
+.deck-name input { font-size: 1.05rem; }
+
+/* 牌組狀態 */
+.deck-status { display: grid; gap: 12px; }
+.status-main { font-family: var(--font-display); font-size: 1.05rem; }
+.status-main.ok { color: var(--ok); }
+.status-main.bad { color: var(--bad); }
+.meters { display: flex; flex-wrap: wrap; gap: 8px; }
+.meter {
+  display: flex; flex-direction: column;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-width: 72px;
+}
+.meter span { font-size: .8rem; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+.meter b { font-family: var(--font-display); font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* 牌組清單 */
+.group-title {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: .95rem;
+  margin: 16px 0 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+.group-title:first-child { margin-top: 0; }
+.card-row {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: start;
+  padding: 10px 6px;
+  border-bottom: 1px solid var(--line);
+}
+.card-row:last-child { border-bottom: 0; }
+.card-row.editing { background: var(--editing); border-radius: 6px; }
+.card-row .dot { margin-top: 7px; }
+.card-info { min-width: 0; }
+.card-name { font-family: var(--font-display); font-size: 1.02rem; font-weight: 600; overflow-wrap: anywhere; }
+.card-meta { font-size: .85rem; color: var(--muted); }
+.card-effect { font-size: .85rem; white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 2px; }
+.card-controls { display: grid; justify-items: end; gap: 4px; }
+.stepper { display: flex; align-items: center; gap: 6px; }
+.qty { min-width: 2ch; text-align: center; font-family: var(--font-display); font-size: 1.05rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.row-actions { display: flex; gap: 10px; }

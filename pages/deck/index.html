@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title data-i18n="title.deck">管理牌組 · TDeck</title>
+  <script src="../../wwwroot/js/theme.js"></script>
+  <script src="../../wwwroot/js/i18n.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;700&amp;family=Noto+Sans+TC:wght@400;500;700&amp;family=Outfit:wght@500;600;700&amp;family=Cormorant+Garamond:ital,wght@1,600&amp;family=Playfair+Display:ital,wght@1,700&amp;display=swap">
+  <link rel="stylesheet" href="../../wwwroot/lib/bootstrap-icons/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="../../wwwroot/lib/bootstrap/bootstrap-modal.min.css">
+  <link rel="stylesheet" href="../../wwwroot/css/site.css">
+  <link rel="stylesheet" href="../../wwwroot/css/deck.css">
+</head>
+<body>
+  <header id="navbar"></header>
+
+  <main>
+    <div class="panel deck-bar">
+      <select id="deck-select" data-i18n-aria-label="deck.select" aria-label="切換牌組"></select>
+      <button type="button" class="btn" id="btn-new-deck" data-i18n="deck.new">新增牌組</button>
+      <button type="button" class="btn danger" id="btn-delete-deck" data-i18n="deck.delete">刪除牌組</button>
+      <span class="sep"></span>
+      <button type="button" class="btn" id="btn-export" data-i18n="deck.export">匯出 .json</button>
+      <label class="btn" for="file-import" data-i18n="deck.import">匯入 .json</label>
+      <input type="file" id="file-import" accept=".json" hidden>
+    </div>
+
+    <label class="panel deck-name">
+      <span data-i18n="deck.name">牌組名稱</span>
+      <input id="deck-name" maxlength="100" autocomplete="off" data-i18n-placeholder="deck.namePlaceholder" placeholder="留空則以當下時間命名">
+    </label>
+
+    <section id="deck-status" class="panel deck-status" aria-live="polite"></section>
+
+    <div class="layout">
+      <form id="card-form" class="panel" novalidate>
+        <h2 id="form-title" data-i18n="form.addTitle">加入卡片</h2>
+        <label class="field">
+          <span><span data-i18n="field.name">名稱</span> <em>*</em></span>
+          <input name="name" autocomplete="off" maxlength="100">
+        </label>
+        <div class="row">
+          <label class="field">
+            <span><span data-i18n="field.type">種類</span> <em>*</em></span>
+            <select name="type" id="f-type"></select>
+          </label>
+          <label class="field">
+            <span><span data-i18n="field.color">顏色</span> <em>*</em></span>
+            <select name="color" id="f-color"></select>
+          </label>
+        </div>
+        <div class="row stats-row">
+          <label class="field stat-field" data-key="level"><span data-i18n="stat.level">等級</span><input name="level" type="number" min="0" step="1" inputmode="numeric"></label>
+          <label class="field stat-field" data-key="cost"><span data-i18n="stat.cost">消耗</span><input name="cost" type="number" min="0" step="1" inputmode="numeric"></label>
+          <label class="field stat-field" data-key="power"><span data-i18n="stat.power">戰力</span><input name="power" type="number" min="0" step="1" inputmode="numeric"></label>
+          <label class="field stat-field" data-key="soul"><span data-i18n="stat.soul">魂點</span><input name="soul" type="number" min="0" step="1" inputmode="numeric"></label>
+        </div>
+        <div class="row">
+          <label class="field">
+            <span data-i18n="field.trigger">觸發</span>
+            <select name="trigger" id="f-trigger"></select>
+          </label>
+          <label class="field">
+            <span><span data-i18n="field.count">張數</span> <em>*</em></span>
+            <input name="count" type="text" inputmode="numeric" pattern="[0-9]*" value="1" autocomplete="off" data-digits>
+          </label>
+        </div>
+        <label class="field">
+          <span data-i18n="field.effect">效果</span>
+          <textarea name="effect" rows="4"></textarea>
+        </label>
+        <p class="form-error" id="form-error" role="alert"></p>
+        <div class="form-actions">
+          <button type="submit" class="btn primary" id="btn-submit" data-i18n="form.submitAdd">加入牌組</button>
+          <button type="button" class="btn" id="btn-cancel" data-i18n="form.cancelEdit" hidden>取消編輯</button>
+        </div>
+      </form>
+
+      <section class="panel">
+        <div class="list-head">
+          <h2 data-i18n="list.title">牌組內容</h2>
+          <span class="muted" id="deck-count"></span>
+        </div>
+        <div id="deck-list" class="deck-list"></div>
+      </section>
+    </div>
+  </main>
+
+  <script src="../../wwwroot/lib/bootstrap/bootstrap.bundle.min.js"></script>
+  <script src="../../wwwroot/js/common.js"></script>
+  <script src="../../wwwroot/js/nav.js"></script>
+  <script src="../../wwwroot/js/rules.js"></script>
+  <script src="../../wwwroot/js/storage.js"></script>
+  <script src="../../wwwroot/js/deck.js"></script>
+</body>
+</html>

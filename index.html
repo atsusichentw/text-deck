@@ -3,26 +3,104 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Text Deck</title>
-  <style>
-    :root { --bg: #fafaf9; --fg: #1c1917; --muted: #78716c; }
-    @media (prefers-color-scheme: dark) {
-      :root { --bg: #1c1917; --fg: #fafaf9; --muted: #a8a29e; }
-    }
-    body {
-      margin: 0; min-height: 100vh; display: grid; place-items: center;
-      background: var(--bg); color: var(--fg);
-      font-family: system-ui, "Noto Sans TC", "Microsoft JhengHei", sans-serif;
-      padding: 0 16px;
-    }
-    h1 { font-size: 2.5rem; margin: 0 0 .5rem; }
-    p { color: var(--muted); margin: 0; }
-  </style>
+  <title data-i18n="title.home">TDeck</title>
+  <script src="wwwroot/js/theme.js"></script>
+  <script src="wwwroot/js/i18n.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;700&amp;family=Noto+Sans+TC:wght@400;500;700&amp;family=Outfit:wght@500;600;700&amp;family=Cormorant+Garamond:ital,wght@1,600&amp;family=Playfair+Display:ital,wght@1,700&amp;display=swap">
+  <link rel="stylesheet" href="wwwroot/lib/bootstrap-icons/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="wwwroot/css/site.css">
+  <link rel="stylesheet" href="wwwroot/css/home.css">
 </head>
 <body>
+  <header id="navbar"></header>
+
   <main>
-    <h1>Text Deck</h1>
-    <p>網站建置中。</p>
+    <article class="panel prose" data-lang="zh-Hant" lang="zh-Hant">
+      <h1>TDeck</h1>
+      <p>自訂卡片的組牌與對戰工具，直接在瀏覽器中使用，不需要安裝。</p>
+
+      <h2>功能</h2>
+      <ul>
+        <li><strong>管理牌組</strong>：自行填寫卡片並加入牌組，系統會即時檢查牌組是否符合規則。可以建立多副牌組，也能匯入或匯出 <code>.json</code> 檔。</li>
+        <li><strong>對戰</strong>：建立房間會產生 6 位英數代碼，把代碼給對手，對手輸入後就能加入房間（對戰規則開發中）。</li>
+        <li><strong>顯示模式</strong>：右上角可切換淺色、深色或自動（跟隨系統設定）。</li>
+        <li><strong>語言</strong>：右上角可切換繁體中文或 English。</li>
+      </ul>
+
+      <h2>規則</h2>
+      <h3>卡片</h3>
+      <table>
+        <thead>
+          <tr><th>欄位</th><th>說明</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>名稱 *</td><td>必填</td></tr>
+          <tr><td>種類 *</td><td>角色、事件、名場面</td></tr>
+          <tr><td>顏色 *</td><td>黃、綠、紅、藍</td></tr>
+          <tr><td>等級</td><td>名場面沒有等級</td></tr>
+          <tr><td>消耗</td><td>名場面沒有消耗</td></tr>
+          <tr><td>戰力</td><td>只有角色有戰力</td></tr>
+          <tr><td>魂點</td><td>只有角色有魂點</td></tr>
+          <tr><td>觸發</td><td>每張卡最多一個：無、魂+1、魂+2、寶袋、木門、風、書、金磚、燒、凱旋門、箭頭、開機、望遠鏡、機會、專注</td></tr>
+          <tr><td>效果</td><td>自由填寫文字</td></tr>
+        </tbody>
+      </table>
+      <p>標示 * 的欄位為必填，所有數值都不能是負數。</p>
+
+      <h3>牌組</h3>
+      <ul>
+        <li>一副牌組剛好 <strong>50</strong> 張。</li>
+        <li>名場面最多 <strong>8</strong> 張。</li>
+        <li>同名卡片不限張數。</li>
+        <li>沒有填寫牌組名稱時，會以建立當下的時間命名，例如 <code>20261002_105300</code>。</li>
+      </ul>
+    </article>
+
+    <article class="panel prose" data-lang="en" lang="en">
+      <h1>TDeck</h1>
+      <p>A deck builder and duel tool for custom cards. It runs in your browser, with nothing to install.</p>
+
+      <h2>Features</h2>
+      <ul>
+        <li><strong>Decks</strong>: create your own cards and add them to a deck. The deck is checked against the rules as you build it. You can keep several decks and import or export them as <code>.json</code> files.</li>
+        <li><strong>Duel</strong>: creating a room gives you a 6-character code. Share it with your opponent so they can join (duel rules are in development).</li>
+        <li><strong>Theme</strong>: switch between Light, Dark, or Auto (follows your system) from the top-right corner.</li>
+        <li><strong>Language</strong>: switch between 繁體中文 and English from the top-right corner.</li>
+      </ul>
+
+      <h2>Rules</h2>
+      <h3>Cards</h3>
+      <table>
+        <thead>
+          <tr><th>Field</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Name *</td><td>Required</td></tr>
+          <tr><td>Type *</td><td>Character, Event, Climax</td></tr>
+          <tr><td>Color *</td><td>Yellow, Green, Red, Blue</td></tr>
+          <tr><td>Level</td><td>Climax cards have no level</td></tr>
+          <tr><td>Cost</td><td>Climax cards have no cost</td></tr>
+          <tr><td>Power</td><td>Characters only</td></tr>
+          <tr><td>Soul</td><td>Characters only</td></tr>
+          <tr><td>Trigger</td><td>At most one per card: none, soul+1, soul+2, pool, comeback, return, draw, treasure, shot, gate, choice, standby, discovery, chance, focus</td></tr>
+          <tr><td>Effect</td><td>Free text</td></tr>
+        </tbody>
+      </table>
+      <p>Fields marked * are required. Numbers can't be negative.</p>
+
+      <h3>Decks</h3>
+      <ul>
+        <li>A deck has exactly <strong>50</strong> cards.</li>
+        <li>Up to <strong>8</strong> Climax cards.</li>
+        <li>No limit on copies of the same card.</li>
+        <li>A deck without a name is named after the time it was created, for example <code>20261002_105300</code>.</li>
+      </ul>
+    </article>
   </main>
+
+  <script src="wwwroot/js/common.js"></script>
+  <script src="wwwroot/js/nav.js"></script>
 </body>
 </html>
